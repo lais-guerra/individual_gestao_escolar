@@ -63,16 +63,7 @@ INSERT INTO controle_academico (id_controle, id_aluno, id_aula, presenca, aula_a
 ON CONFLICT (id_controle) DO NOTHING;
 SELECT setval('controle_academico_id_controle_seq', (SELECT MAX(id_controle) FROM controle_academico));
 
--- 6. Mensalidades para o Módulo Financeiro
--- Maria Silva: Em aberto (PENDENTE)
--- João Santos: Já quitado na secretaria (PAGO)
-INSERT INTO mensalidades (id_mensalidade, id_aluno, mes_referencia, valor, data_vencimento, status, data_pagamento) VALUES
-    (1, 1, TO_CHAR(CURRENT_DATE, 'YYYY-MM'), 150.00, CURRENT_DATE + INTERVAL '5 days', 'PENDENTE', NULL),
-    (2, 2, TO_CHAR(CURRENT_DATE - INTERVAL '1 month', 'YYYY-MM'), 150.00, CURRENT_DATE - INTERVAL '15 days', 'PAGO', CURRENT_DATE - INTERVAL '16 days')
-ON CONFLICT (id_mensalidade) DO NOTHING;
-SELECT setval('mensalidades_id_mensalidade_seq', (SELECT MAX(id_mensalidade) FROM mensalidades));
-
--- 7. Avisos no Mural Institucional (eventos_agenda)
+-- 6. Avisos no Mural Institucional (eventos_agenda)
 INSERT INTO eventos_agenda (id_evento, titulo, descricao, data_evento, tipo_evento) VALUES
     (1, 'Início do Semestre Letivo', 'Abertura oficial das mentorias e alinhamento de horários', CURRENT_DATE - INTERVAL '10 days', 'AVISO'),
     (2, 'Simulado Geral de Nivelamento', 'Período reservado para testes de proficiência oral e escrita', CURRENT_DATE + INTERVAL '12 days', 'PROVA')

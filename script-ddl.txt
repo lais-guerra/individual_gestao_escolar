@@ -3,12 +3,11 @@
 -- =============================================================================
 
 -- Limpeza preventiva de tabelas dependentes caso precise recriar do zero
-DROP TABLE IF EXISTS mensalidades CASCADE;
 DROP TABLE IF EXISTS controle_academico CASCADE;
 DROP TABLE IF EXISTS aulas CASCADE;
 DROP TABLE IF EXISTS temas CASCADE;
 DROP TABLE IF EXISTS alunos CASCADE;
-DROP TABLE IF EXISTS professor CASCADE;
+DROP TABLE IF EXISTS professores CASCADE;
 DROP TABLE IF EXISTS administradores CASCADE;
 DROP TABLE IF EXISTS eventos_agenda CASCADE;
 DROP TABLE IF EXISTS niveis CASCADE;
@@ -44,7 +43,7 @@ INSERT INTO niveis (sigla, nome, descricao) VALUES
 -- 2. PERFIS ESPECÍFICOS DE USUÁRIO
 -- =============================================================================
 
--- Secretaria / Direção (Acesso global e financeiro)
+-- Secretaria / Direção (Acesso global administrativo)
 CREATE TABLE administradores (
     id_admin SERIAL PRIMARY KEY,
     id_usuario INT UNIQUE NOT NULL,
@@ -53,7 +52,7 @@ CREATE TABLE administradores (
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- Corpo docente (Gestão de aulas, temas e devolutiva de notas)
+-- Corpo docente (Gestão de aulas, temas e lançamento de notas/presença)
 CREATE TABLE professores (
     id_professor SERIAL PRIMARY KEY,
     id_usuario INT UNIQUE NOT NULL,
@@ -61,7 +60,7 @@ CREATE TABLE professores (
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- Alunos (Campos de endereço estruturados para receber ViaCEP)
+-- Alunos (Campos de endereço estruturados para integração com ViaCEP)
 CREATE TABLE alunos (
     id_aluno SERIAL PRIMARY KEY,
     id_usuario INT UNIQUE NOT NULL,
@@ -97,7 +96,7 @@ CREATE TABLE aulas (
     id_aula SERIAL PRIMARY KEY,
     id_professor INT NOT NULL,
     id_aluno INT NOT NULL,
-    id_tema INT, -- Opcional/flexível (RN04)
+    id_tema INT, -- Opcional/flexível
     titulo_aula VARCHAR(150) NOT NULL,
     data_aula DATE NOT NULL,
     horario_inicio TIME NOT NULL, -- Duração presumida de 1 hora
@@ -116,16 +115,16 @@ CREATE TABLE aulas (
 -- 4. CONTROLE ACADÊMICO E AUTOAVALIAÇÃO
 -- =============================================================================
 
--- Check de aula assistida pelo aluno e notas mútuas
+-- Registro de chamada, autoavaliação e conclusão da aula pelo aluno
 CREATE TABLE controle_academico (
     id_controle SERIAL PRIMARY KEY,
     id_aluno INT NOT NULL,
     id_aula INT NOT NULL,
-    presenca BOOLEAN DEFAULT FALSE,       -- Controle de chamada do Professor
-    aula_assistida BOOLEAN DEFAULT FALSE, -- Check marcado pelo Aluno
+    presenca BOOLEAN DEFAULT FALSE,       -- Controle de presença do Professor
+    aula_assistida BOOLEAN DEFAULT FALSE, -- Confirmação marcada pelo Aluno
     data_conclusao TIMESTAMP,             -- Momento da conclusão pelo aluno
-    nota_professor DECIMAL(5,2),          -- Nota lançada pelo Professor
-    nota_autoav DECIMAL(5,2),             -- Autoavaliação do Aluno
+    nota_professor DECIMAL(5,2),          -- Nota atribuída pelo Professor
+    nota_autoav DECIMAL(5,2),             -- Nota de autoavaliação do Aluno
     anotacoes_aluno TEXT,
     CONSTRAINT uk_aluno_aula UNIQUE (id_aluno, id_aula),
     FOREIGN KEY (id_aluno) REFERENCES alunos(id_aluno) ON DELETE CASCADE,
@@ -133,26 +132,14 @@ CREATE TABLE controle_academico (
 );
 
 -- =============================================================================
--- 5. MURAL INSTITUCIONAL E CONTROLE FINANCEIRO
+-- 5. MURAL INSTITUCIONAL E COMUNICADOS
 -- =============================================================================
 
--- Avisos e provas escolares (unificados com feriados da BrasilAPI)
+-- Avisos, comunicados e eventos da escola (integrados aos feriados no calendário)
 CREATE TABLE eventos_agenda (
     id_evento SERIAL PRIMARY KEY,
     titulo VARCHAR(150) NOT NULL,
     descricao TEXT,
     data_evento DATE NOT NULL,
     tipo_evento VARCHAR(50) DEFAULT 'AVISO' -- 'AVISO', 'PROVA', 'REUNIAO'
-);
-
--- Módulo Financeiro simples para a Secretaria (ADMIN)
-CREATE TABLE mensalidades (
-    id_mensalidade SERIAL PRIMARY KEY,
-    id_aluno INT NOT NULL,
-    mes_referencia VARCHAR(7) NOT NULL, -- Ex: '2026-09'
-    valor DECIMAL(10,2) NOT NULL DEFAULT 150.00,
-    data_vencimento DATE NOT NULL,
-    status VARCHAR(20) DEFAULT 'PENDENTE', -- 'PENDENTE', 'PAGO', 'ATRASADO'
-    data_pagamento DATE,
-    FOREIGN KEY (id_aluno) REFERENCES alunos(id_aluno) ON DELETE CASCADE
 );
