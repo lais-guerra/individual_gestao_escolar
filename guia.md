@@ -1,4 +1,3 @@
-```markdown
 # Guia de Execução e Backlog Técnico: Portal Escolar
 
 Este documento detalha o passo a passo cronológico de concepção, desenvolvimento, refatoração e publicação do **Portal Escolar**. Ele foi estruturado para que qualquer desenvolvedor consiga reproduzir a arquitetura completa do zero.
