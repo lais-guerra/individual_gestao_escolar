@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Painel do Docente - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Painel do Docente</h1>
+
+    <!-- MINHAS AULAS AGENDADAS -->
+    <section class="cartao-detalhe">
+        <h2>Minhas Sessões Agendadas</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Horário</th>
+                    <th>Aluno</th>
+                    <th>Nível</th>
+                    <th>Título / Tema</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in aulas %}
+                <tr>
+                    <td style="white-space: nowrap;">
+                        {% set p = (a.data_aula | string).split('-') %}
+                        {{ p[2] ~ '-' ~ p[1] ~ '-' ~ p[0] if p|length == 3 else a.data_aula }}
+                    </td>
+                    <td><span class="tag-horario">{{ (a.horario_inicio | string)[:5] if a.horario_inicio else '' }}</span></td>
+                    <td><strong>{{ a.nome_aluno }}</strong></td>
+                    <td><span class="badge badge-perfil-aluno">{{ a.sigla_nivel }}</span></td>
+                    <td>{{ a.titulo_aula }} {% if a.titulo_tema %}(Tema: {{ a.titulo_tema }}){% endif %}</td>
+                    <td><span class="badge badge-{{ a.status.lower() }}">{{ a.status }}</span></td>
+                    <td>
+                        <a href="/aula/{{ a.id_aula }}">Abrir Sala / Diário</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7">Nenhuma mentoria agendada no seu cronograma no momento.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- CALENDÁRIO DOCENTE -->
+    <section id="calendario-academico" class="cartao-detalhe">
+        <h2>Meu Calendário Mensal</h2>
+        <div class="calendario-container">
+            <div class="calendario-nav">
+                <a href="{{ url_for('painel_professor', ano=ano_anterior, mes=mes_anterior) }}#calendario-academico" class="calendario-btn-nav">‹ Mês Anterior</a>
+                <span class="calendario-cabecalho-mes">{{ nome_mes_atual }} de {{ ano_atual }}</span>
+                <a href="{{ url_for('painel_professor', ano=ano_proximo, mes=mes_proximo) }}#calendario-academico" class="calendario-btn-nav">Próximo Mês ›</a>
+            </div>
+
+            <div class="calendario-grid">
+                <div class="calendario-dia-semana">Dom</div>
+                <div class="calendario-dia-semana">Seg</div>
+                <div class="calendario-dia-semana">Ter</div>
+                <div class="calendario-dia-semana">Qua</div>
+                <div class="calendario-dia-semana">Qui</div>
+                <div class="calendario-dia-semana">Sex</div>
+                <div class="calendario-dia-semana">Sáb</div>
+
+                {% for semana in matriz_mes %}
+                    {% for dia in semana %}
+                        {% if dia == 0 %}
+                            <div class="calendario-celula vazia" aria-hidden="true"></div>
+                        {% else %}
+                            <div class="calendario-celula {% if dia == dia_hoje %}hoje{% endif %}">
+                                <span class="calendario-numero-dia">{{ dia }}</span>
+                                {% if dia in eventos_por_dia %}
+                                    {% for ev in eventos_por_dia[dia] %}
+                                        {% if ev.tipo == 'AULA_DOCENTE' %}
+                                            <a href="/aula/{{ ev.id_aula }}" style="text-decoration: none;">
+                                                <div class="calendario-evento-item badge-aula-agendada">{{ ev.titulo }}</div>
+                                            </a>
+                                        {% else %}
+                                            <div class="calendario-evento-item badge-em-dia" title="{{ ev.descricao }}">
+                                                {{ ev.titulo }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <!-- CONSULTA RÁPIDA DE FERIADOS NACIONAIS (BRASILAPI) -->
+            {% if feriados %}
+            <details style="margin-top: 18px; text-align: left; border: 1px solid var(--borda); border-radius: 4px; padding: 8px 12px; background-color: var(--bg-card);">
+                <summary style="cursor: pointer; font-weight: 700; color: var(--primaria);">
+                    📅 Exibir Feriados Nacionais Oficiais ({{ ano_atual }})
+                </summary>
+                <div style="margin-top: 12px;">
+                    <table style="margin: 0 auto; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="width: 130px;">Data</th>
+                                <th>Feriado Nacional</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in feriados %}
+                            <tr>
+                                <td style="white-space: nowrap;">
+                                    {% set pf = (f.date | string).split('-') %}
+                                    {{ pf[2] ~ '-' ~ pf[1] ~ '-' ~ pf[0] if pf|length == 3 else f.date }}
+                                </td>
+                                <td><strong>{{ f.name }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- AGENDAR NOVA AULA -->
+    <section id="agendar-aula" class="cartao-detalhe">
+        <h2>Agendar Nova Sessão Individual</h2>
+        <form action="/professor/agendar_aula" method="POST" enctype="multipart/form-data">
+            <div>
+                <label for="id_aluno"><strong>Selecione o Estudante:</strong></label><br>
+                <select id="id_aluno" name="id_aluno" required>
+                    <option value="" disabled selected>Escolha um estudante...</option>
+                    {% for aluno in alunos_disponiveis %}
+                        <option value="{{ aluno.id_aluno }}">{{ aluno.nome }} ({{ aluno.sigla_nivel }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+
+            <div>
+                <label for="titulo_aula"><strong>Título da Aula / Objetivo:</strong></label><br>
+                <input type="text" id="titulo_aula" name="titulo_aula" required maxlength="150" placeholder="Ex: Conversação Guiada">
+            </div>
+            <br>
+
+            <div>
+                <label for="id_tema"><strong>Tema Curricular:</strong></label><br>
+                <select id="id_tema" name="id_tema">
+                    <option value="">-- Tema Livre --</option>
+                    {% for tema in temas_disponiveis %}
+                        <option value="{{ tema.id_tema }}">{{ tema.titulo_tema }} ({{ tema.sigla_nivel }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+
+            <div>
+                <label for="data_aula"><strong>Data da Mentoria:</strong></label><br>
+                <input type="date" id="data_aula" name="data_aula" required>
+            </div>
+            <br>
+
+            <div>
+                <label for="horario_inicio"><strong>Horário de Início (1 hora):</strong></label><br>
+                <input type="time" id="horario_inicio" name="horario_inicio" required step="1800">
+            </div>
+            <br>
+
+            <div>
+                <label for="link_aula"><strong>Link da Sala Virtual (Meet / Teams):</strong></label><br>
+                <input type="url" id="link_aula" name="link_aula" placeholder="https://meet.google.com/...">
+            </div>
+            <br>
+
+            <fieldset>
+                <legend>Material Complementar (Apenas PDF)</legend>
+                <div>
+                    <label for="arquivo_pdf">Documento Didático (PDF):</label><br>
+                    <input type="file" id="arquivo_pdf" name="arquivo_pdf" accept=".pdf">
+                </div>
+            </fieldset>
+            <br>
+
+            <div>
+                <label for="observacoes"><strong>Orientações Prévias ao Aluno:</strong></label><br>
+                <textarea id="observacoes" name="observacoes" rows="3"></textarea>
+            </div>
+            <br>
+
+            <button type="submit">Agendar Mentoria</button>
+        </form>
+    </section>
+
+    <!-- CADASTRO RÁPIDO DE TEMA -->
+    <section class="cartao-detalhe">
+        <h2>Cadastrar Novo Tema Curricular</h2>
+        <form action="/professor/cadastrar_tema" method="POST">
+            <div>
+                <label for="titulo_tema"><strong>Título do Tema:</strong></label><br>
+                <input type="text" id="titulo_tema" name="titulo_tema" required maxlength="150">
+            </div>
+            <br>
+
+            <div>
+                <label for="id_nivel_tema"><strong>Nível do Conteúdo:</strong></label><br>
+                <select id="id_nivel_tema" name="id_nivel" required>
+                    <option value="" disabled selected>Selecione o nível...</option>
+                    {% for nivel in niveis %}
+                        <option value="{{ nivel.id_nivel }}">{{ nivel.nome }} ({{ nivel.sigla }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+
+            <div>
+                <label for="descricao_tema"><strong>Objetivos Pedagógicos:</strong></label><br>
+                <textarea id="descricao_tema" name="descricao" rows="3"></textarea>
+            </div>
+            <br>
+
+            <button type="submit">Salvar Tema</button>
+        </form>
+    </section>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Cadastro de Aluno - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Ficha de Matrícula do Aluno</h1>
+    <p><a href="/login">Já possui cadastro institucional? Faça login aqui</a></p>
+
+    <form action="/salvar_cadastro_aluno" method="POST" id="formCadastroAluno">
+        
+        <!-- DADOS PESSOAIS E ACESSO -->
+        <fieldset class="cartao-detalhe">
+            <legend><strong>Dados Pessoais e Acesso</strong></legend>
+
+            <div>
+                <label for="nome">Nome Completo:</label><br>
+                <input type="text" id="nome" name="nome" required maxlength="100" autocomplete="name" placeholder="Ex: Maria Silva">
+            </div>
+            <br>
+
+            <div>
+                <label for="cpf">CPF (apenas 11 números):</label><br>
+                <input type="text" id="cpf" name="cpf" required pattern="\d{11}" placeholder="12345678901" maxlength="11">
+            </div>
+            <br>
+
+            <div>
+                <label for="email">E-mail Pessoal (Login de Acesso):</label><br>
+                <input type="email" id="email" name="email" required maxlength="100" autocomplete="email" placeholder="seuemail@provedor.com">
+            </div>
+            <br>
+
+            <div>
+                <label for="senha">Crie sua Senha de Acesso:</label><br>
+                <input type="password" id="senha" name="senha" required minlength="6" maxlength="50" autocomplete="new-password">
+            </div>
+            <br>
+
+            <div>
+                <label for="id_nivel">Nível Acadêmico Pretendido:</label><br>
+                <select id="id_nivel" name="id_nivel" required>
+                    <option value="" disabled selected>Selecione um nível...</option>
+                    {% for n in niveis %}
+                        <option value="{{ n.id_nivel }}">{{ n.nome }} ({{ n.sigla }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </fieldset>
+        <br>
+
+        <!-- ENDEREÇO RESIDENCIAL VIA CEP -->
+        <fieldset class="cartao-detalhe">
+            <legend><strong>Endereço Residencial (ViaCEP)</strong></legend>
+
+            <div>
+                <label for="cep">CEP (8 dígitos):</label><br>
+                <input type="text" id="cep" name="cep" required maxlength="9" placeholder="00000-000" onblur="buscarCep()">
+                <span id="statusCep"></span>
+            </div>
+            <br>
+
+            <div>
+                <label for="logradouro">Logradouro / Rua:</label><br>
+                <input type="text" id="logradouro" name="logradouro" required readonly maxlength="150">
+            </div>
+            <br>
+
+            <div>
+                <label for="numero">Número Residencial:</label><br>
+                <input type="text" id="numero" name="numero" required maxlength="20">
+            </div>
+            <br>
+
+            <div>
+                <label for="complemento">Complemento (opcional):</label><br>
+                <input type="text" id="complemento" name="complemento" maxlength="100" placeholder="Apto, Bloco, etc.">
+            </div>
+            <br>
+
+            <div>
+                <label for="bairro">Bairro:</label><br>
+                <input type="text" id="bairro" name="bairro" required readonly maxlength="100">
+            </div>
+            <br>
+
+            <div>
+                <label for="cidade">Cidade:</label><br>
+                <input type="text" id="cidade" name="cidade" required readonly maxlength="100">
+            </div>
+            <br>
+
+            <div>
+                <label for="uf">UF (Estado):</label><br>
+                <input type="text" id="uf" name="uf" required readonly maxlength="2" style="max-width: 80px;">
+            </div>
+        </fieldset>
+        <br>
+
+        <button type="submit">Concluir Matrícula</button>
+    </form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function buscarCep() {
+        const campoCep = document.getElementById('cep');
+        const statusCep = document.getElementById('statusCep');
+        const cepLimpo = campoCep.value.replace(/\D/g, '');
+
+        if (cepLimpo.length !== 8) {
+            if (cepLimpo.length > 0) {
+                statusCep.innerHTML = ' <span class="badge badge-pendente">CEP inválido (8 dígitos)</span>';
+            }
+            return;
+        }
+
+        statusCep.innerHTML = ' <span class="badge badge-agendada">Buscando...</span>';
+
+        fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+            .then(r => r.json())
+            .then(dados => {
+                if (dados.erro) {
+                    statusCep.innerHTML = ' <span class="badge badge-pendente">CEP não localizado</span>';
+                    document.getElementById('logradouro').value = '';
+                    document.getElementById('bairro').value = '';
+                    document.getElementById('cidade').value = '';
+                    document.getElementById('uf').value = '';
+                } else {
+                    document.getElementById('logradouro').value = dados.logradouro || '';
+                    document.getElementById('bairro').value = dados.bairro || '';
+                    document.getElementById('cidade').value = dados.localidade || '';
+                    document.getElementById('uf').value = dados.uf || '';
+                    statusCep.innerHTML = ' <span class="badge badge-em-dia">Endereço Carregado</span>';
+                    document.getElementById('numero').focus();
+                }
+            })
+            .catch(() => {
+                statusCep.innerHTML = ' <span class="badge badge-pendente">Erro ao buscar CEP</span>';
+            });
+    }
+</script>
+{% endblock %}

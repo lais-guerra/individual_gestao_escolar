@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Grade Geral de Aulas - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Grade Geral de Aulas Agendadas</h1>
+
+    <!-- BARRA DE FILTROS COM BUSCA DIGITADA DE ALUNO -->
+    <section class="cartao-detalhe" style="max-width: 760px; margin-left: auto; margin-right: auto;">
+        <h2>Filtros da Grade</h2>
+        <form action="/gerenciar-aulas" method="GET" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; justify-content: center; max-width: 100%;">
+            <div>
+                <label for="filtro_nome">Buscar Aluno por Nome:</label><br>
+                <input type="text" id="filtro_nome" name="busca_aluno" placeholder="Digite o nome..." 
+                       value="{{ request.args.get('busca_aluno', '') }}" style="width: 200px;">
+            </div>
+
+            <div>
+                <label for="filtro_tema">Tema Curricular:</label><br>
+                <select id="filtro_tema" name="tema_id" style="width: auto; min-width: 180px;">
+                    <option value="">-- Todos os Temas --</option>
+                    {% for t in temas %}
+                        <option value="{{ t.id_tema }}" {% if request.args.get('tema_id') == (t.id_tema | string) %}selected{% endif %}>
+                            {{ t.titulo_tema }} ({{ t.sigla_nivel }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="filtro_status">Status:</label><br>
+                <select id="filtro_status" name="status" style="width: auto;">
+                    <option value="">-- Todos --</option>
+                    <option value="AGENDADA" {% if request.args.get('status') == 'AGENDADA' %}selected{% endif %}>AGENDADA</option>
+                    <option value="CONCLUIDA" {% if request.args.get('status') == 'CONCLUIDA' %}selected{% endif %}>CONCLUIDA</option>
+                    <option value="CANCELADA" {% if request.args.get('status') == 'CANCELADA' %}selected{% endif %}>CANCELADA</option>
+                </select>
+            </div>
+
+            <button type="submit" style="margin: 0;">Filtrar Aulas</button>
+            <a href="/gerenciar-aulas" style="align-self: center; margin-left: 8px;">Limpar Filtros</a>
+        </form>
+    </section>
+
+    <!-- TABELA DE AULAS CENTRALIZADA (SEM SCROLL HORIZONTAL) -->
+    <section>
+        <h2>Aulas Encontradas</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Horário</th>
+                    <th>Aluno</th>
+                    <th>Nível</th>
+                    <th>Docente</th>
+                    <th>Tema Curricular</th>
+                    <th>Título da Sessão</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for aula in lista_aulas %}
+                <tr>
+                    <td style="white-space: nowrap;">
+                        {% set p = (aula.data_aula | string).split('-') %}
+                        {{ p[2] ~ '-' ~ p[1] ~ '-' ~ p[0] if p|length == 3 else aula.data_aula }}
+                    </td>
+                    <td>
+                        <span class="tag-horario">{{ (aula.horario_inicio | string)[:5] if aula.horario_inicio else '' }}</span>
+                    </td>
+                    <td><strong>{{ aula.nome_aluno }}</strong></td>
+                    <td><span class="badge badge-perfil-aluno">{{ aula.sigla_nivel }}</span></td>
+                    <td>{{ aula.nome_professor }}</td>
+                    <td>{{ aula.titulo_tema or 'Flexível / Livre' }}</td>
+                    <td>{{ aula.titulo_aula }}</td>
+                    <td>
+                        <span class="badge badge-{{ aula.status.lower() }}">{{ aula.status }}</span>
+                    </td>
+                    <td style="white-space: nowrap;">
+                        <button type="button" 
+                                class="btn-editar-inline"
+                                data-id="{{ aula.id_aula }}"
+                                data-data="{{ aula.data_aula }}"
+                                data-horario="{{ aula.horario_inicio }}"
+                                data-tema="{{ aula.id_tema or '' }}"
+                                data-link="{{ aula.link_aula or '' }}"
+                                data-obs="{{ aula.observacoes or '' }}"
+                                onclick="carregarEdicaoInline(this)">
+                            Editar
+                        </button> | 
+                        <a href="/aula/{{ aula.id_aula }}">Abrir Sala</a> | 
+                        {% if aula.status != 'CANCELADA' %}
+                            <form action="/aulas/alterar_status" method="POST" style="display:inline;">
+                                <input type="hidden" name="id_aula" value="{{ aula.id_aula }}">
+                                <input type="hidden" name="novo_status" value="CANCELADA">
+                                <button type="submit" style="color:#dc2626 !important;" onclick="return confirm('Cancelar esta aula?')">Cancelar</button>
+                            </form>
+                        {% else %}
+                            <form action="/aulas/alterar_status" method="POST" style="display:inline;">
+                                <input type="hidden" name="id_aula" value="{{ aula.id_aula }}">
+                                <input type="hidden" name="novo_status" value="AGENDADA">
+                                <button type="submit" style="color:#10b981 !important;">Reativar</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9">Nenhuma aula agendada com os filtros informados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- FORMULÁRIO DE REAGENDAMENTO E EDIÇÃO -->
+    <section id="bloco-reagendamento" class="cartao-detalhe" style="margin-top: 30px; display: none;">
+        <h2>Reagendar / Alterar Aula Selecionada: <span id="label_id_aula"></span></h2>
+        
+        <form action="/aulas/editar" method="POST">
+            <input type="hidden" id="edit_id_aula" name="id_aula">
+
+            <div>
+                <label for="edit_nova_data">Nova Data da Aula:</label><br>
+                <input type="date" id="edit_nova_data" name="nova_data" required>
+            </div>
+            <br>
+
+            <div>
+                <label for="edit_novo_horario">Novo Horário de Início (1 hora):</label><br>
+                <input type="time" id="edit_novo_horario" name="novo_horario" required>
+            </div>
+            <br>
+
+            <div>
+                <label for="edit_id_tema">Tema Pedagógico:</label><br>
+                <select id="edit_id_tema" name="id_tema">
+                    <option value="">-- Sem Tema Vinculado --</option>
+                    {% for t in temas %}
+                        <option value="{{ t.id_tema }}">{{ t.titulo_tema }} ({{ t.sigla_nivel }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+
+            <div>
+                <label for="edit_novo_link">Link da Sala Virtual (Meet / Teams):</label><br>
+                <input type="url" id="edit_novo_link" name="novo_link" placeholder="https://meet.google.com/...">
+            </div>
+            <br>
+
+            <div>
+                <label for="edit_observacoes">Observações / Orientações:</label><br>
+                <textarea id="edit_observacoes" name="observacoes" rows="3"></textarea>
+            </div>
+            <br>
+
+            <div>
+                <button type="submit">Confirmar Reagendamento</button>
+                <button type="button" onclick="fecharEdicaoInline()" style="margin-left: 10px; background: none; border: 1px solid var(--borda); padding: 8px 14px; cursor: pointer;">Cancelar</button>
+            </div>
+        </form>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function carregarEdicaoInline(btn) {
+        const bloco = document.getElementById('bloco-reagendamento');
+        bloco.style.display = 'block';
+
+        document.getElementById('edit_id_aula').value = btn.getAttribute('data-id');
+        document.getElementById('label_id_aula').innerText = '#' + btn.getAttribute('data-id');
+        document.getElementById('edit_nova_data').value = btn.getAttribute('data-data');
+        document.getElementById('edit_novo_horario').value = (btn.getAttribute('data-horario') || '').substring(0, 5);
+        document.getElementById('edit_id_tema').value = btn.getAttribute('data-tema');
+        document.getElementById('edit_novo_link').value = btn.getAttribute('data-link');
+        document.getElementById('edit_observacoes').value = btn.getAttribute('data-obs');
+
+        bloco.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function fecharEdicaoInline() {
+        document.getElementById('bloco-reagendamento').style.display = 'none';
+    }
+</script>
+{% endblock %}

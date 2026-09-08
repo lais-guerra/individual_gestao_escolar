@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Acesso ao Sistema - Portal Escolar{% endblock %}
+
+<!-- Desativa a navbar completa no login -->
+{% block navbar %}
+<nav class="navbar">
+    <div class="navbar-esquerda">
+        <span class="marca-sistema">Portal Escolar</span>
+    </div>
+    <div class="navbar-direita">
+        <button type="button" class="btn-contraste" onclick="alternarContraste()" aria-label="Alternar modo de alto contraste" title="Alternar Alto Contraste">
+            ◐ Contraste
+        </button>
+    </div>
+</nav>
+{% endblock %}
+
+{% block conteudo %}
+<div class="login-wrapper">
+    <div class="login-card cartao-detalhe">
+        <h2>Acesso ao Sistema</h2>
+
+        <form action="/fazer_login" method="POST">
+            <div>
+                <label for="email"><strong>E-mail institucional:</strong></label><br>
+                <input type="email" id="email" name="email" required autocomplete="email" placeholder="nome@exemplo.com">
+            </div>
+            <br>
+
+            <div>
+                <label for="senha"><strong>Senha de Acesso:</strong></label><br>
+                <input type="password" id="senha" name="senha" required autocomplete="current-password" placeholder="Digite sua senha">
+            </div>
+            <br>
+
+            <button type="submit">Entrar no Portal</button>
+        </form>
+
+        <div class="login-rodape" style="margin-top: 20px;">
+            <hr>
+            <p>É um novo estudante?<br><a href="/cadastro">Faça sua matrícula aqui</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

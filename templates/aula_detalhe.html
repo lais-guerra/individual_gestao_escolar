@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Detalhes da Aula - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Detalhes da Sessão de Mentoria</h1>
+
+    <!-- BLOCO 1: DADOS GERAIS DO AGENDAMENTO -->
+    <section class="cartao-detalhe">
+        <h2>Informações da Aula</h2>
+        <ul class="lista-informacoes">
+            <li>
+                <strong>Data:</strong> 
+                {% set p = (aula.data_aula | string).split('-') %}
+                {{ p[2] ~ '-' ~ p[1] ~ '-' ~ p[0] if p|length == 3 else aula.data_aula }}
+            </li>
+            <li>
+                <strong>Horário:</strong> 
+                <span class="tag-horario">{{ (aula.horario_inicio | string)[:5] if aula.horario_inicio else '' }}</span> 
+                (Duração de 1 hora)
+            </li>
+            <li><strong>Professor:</strong> {{ aula.nome_professor }}</li>
+            <li><strong>Aluno:</strong> {{ aula.nome_aluno }} (Nível: <strong>{{ aula.nivel_aluno }}</strong>)</li>
+            <li><strong>Tema Didático:</strong> {{ aula.titulo_tema or 'Conteúdo Flexível / Não categorizado' }}</li>
+            <li>
+                <strong>Status Atual:</strong> 
+                <span class="badge badge-{{ aula.status.lower() }}">{{ aula.status }}</span>
+            </li>
+        </ul>
+
+        {% if aula.observacoes %}
+            <div style="margin-top: 14px;">
+                <strong>Orientações / Tarefas Pré-aula:</strong>
+                <p style="margin: 4px 0;">{{ aula.observacoes }}</p>
+            </div>
+        {% endif %}
+
+        <div style="margin-top: 16px;">
+            <strong>Link de Acesso:</strong>
+            {% if aula.link_aula %}
+                <a href="{{ aula.link_aula }}" target="_blank" rel="noopener noreferrer">Acessar Sala Virtual (Meet/Teams)</a>
+            {% else %}
+                <em>Link da transmissão online não informado.</em>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- BLOCO 2: MATERIAIS DE APOIO -->
+    <section class="cartao-detalhe">
+        <h2>Materiais e Conteúdo Didático</h2>
+        {% if aula.url_pdf or aula.url_slides %}
+            <ul class="lista-informacoes">
+                {% if aula.url_pdf %}
+                    <li>
+                        Documento Complementar (PDF): 
+                        <a href="{{ aula.url_pdf }}" target="_blank" download>Baixar Arquivo PDF</a>
+                    </li>
+                {% endif %}
+                {% if aula.url_slides %}
+                    <li>
+                        Apresentação dos Slides: 
+                        <a href="{{ aula.url_slides }}" target="_blank" download>Baixar Apresentação</a>
+                    </li>
+                {% endif %}
+            </ul>
+        {% else %}
+            <p><em>Nenhum material de apoio anexado para esta aula.</em></p>
+        {% endif %}
+    </section>
+
+    <!-- BLOCO 3: VISÃO EXCLUSIVA DO ALUNO -->
+    {% if session.get('perfil_logado') == 'ALUNO' %}
+        <section class="cartao-detalhe">
+            <h2>Sua Participação e Autoavaliação</h2>
+            
+            <p>
+                Status do seu estudo: 
+                {% if controle and controle.aula_assistida %}
+                    <span class="badge badge-em-dia">Assistida [✓]</span> em {{ controle.data_conclusao }}
+                {% else %}
+                    <span class="badge badge-pendente">Pendente de Estudo [ ]</span>
+                {% endif %}
+            </p>
+
+            <form action="/aluno/salvar_autoavaliacao" method="POST">
+                <input type="hidden" name="id_aula" value="{{ aula.id_aula }}">
+
+                <div>
+                    <label>
+                        <input type="checkbox" name="aula_assistida" value="true" 
+                               {% if controle and controle.aula_assistida %}checked{% endif %} required>
+                        Confirmo que estudei o conteúdo e participei desta aula.
+                    </label>
+                </div>
+                <br>
+
+                <div>
+                    <label for="nota_autoav"><strong>Sua Nota de Autoavaliação (0.0 a 10.0):</strong></label><br>
+                    <input type="number" id="nota_autoav" name="nota_autoav" step="0.1" min="0" max="10" 
+                           value="{{ controle.nota_autoav if controle and controle.nota_autoav is not none else '' }}" 
+                           required placeholder="Ex: 8.5">
+                </div>
+                <br>
+
+                <div>
+                    <label for="anotacoes_aluno"><strong>Suas Dúvidas ou Anotações Pessoais:</strong></label><br>
+                    <textarea id="anotacoes_aluno" name="anotacoes_aluno" rows="4" 
+                              placeholder="Registre seus apontamentos sobre esta aula...">{{ controle.anotacoes_aluno if controle and controle.anotacoes_aluno else '' }}</textarea>
+                </div>
+                <br>
+
+                <button type="submit">Salvar Minha Autoavaliação</button>
+            </form>
+        </section>
+    {% endif %}
+
+    <!-- BLOCO 4: VISÃO DO PROFESSOR OU ADMIN -->
+    {% if session.get('perfil_logado') in ['PROFESSOR', 'ADMIN'] %}
+        <section class="cartao-detalhe">
+            <h2>Diário de Classe Oficial</h2>
+
+            <fieldset>
+                <legend>Retorno Submetido pelo Aluno</legend>
+                <p>
+                    <strong>Check do Aluno:</strong> 
+                    {% if controle and controle.aula_assistida %}
+                        <span class="badge badge-em-dia">Assistida [✓]</span>
+                    {% else %}
+                        <span class="badge badge-pendente">Pendente [ ]</span>
+                    {% endif %}
+                </p>
+                <p>
+                    <strong>Nota de Autoavaliação:</strong> 
+                    {% if controle and controle.nota_autoav is not none %}
+                        <strong>{{ controle.nota_autoav }}</strong>
+                    {% else %}
+                        <em>Ainda não avaliado pelo aluno</em>
+                    {% endif %}
+                </p>
+                <p>
+                    <strong>Anotações do Aluno:</strong><br>
+                    {{ controle.anotacoes_aluno or 'Nenhuma dúvida ou anotação registrada.' }}
+                </p>
+            </fieldset>
+            <br>
+
+            <form action="/professor/salvar_avaliacao_oficial" method="POST">
+                <input type="hidden" name="id_aula" value="{{ aula.id_aula }}">
+                <input type="hidden" name="id_aluno" value="{{ aula.id_aluno }}">
+
+                <div>
+                    <label>
+                        <input type="checkbox" name="presenca" value="true" 
+                               {% if controle and controle.presenca %}checked{% endif %}>
+                        <strong>Presença Confirmada</strong> (Aluno compareceu à mentoria)
+                    </label>
+                </div>
+                <br>
+
+                <div>
+                    <label for="nota_professor"><strong>Nota Oficial do Docente (0.0 a 10.0):</strong></label><br>
+                    <input type="number" id="nota_professor" name="nota_professor" step="0.1" min="0" max="10" 
+                           value="{{ controle.nota_professor if controle and controle.nota_professor is not none else '' }}" 
+                           placeholder="Ex: 9.0">
+                </div>
+                <br>
+
+                <div>
+                    <label for="status_aula"><strong>Atualizar Status da Aula:</strong></label><br>
+                    <select id="status_aula" name="status">
+                        <option value="AGENDADA" {% if aula.status == 'AGENDADA' %}selected{% endif %}>AGENDADA</option>
+                        <option value="CONCLUIDA" {% if aula.status == 'CONCLUIDA' %}selected{% endif %}>CONCLUIDA</option>
+                        <option value="CANCELADA" {% if aula.status == 'CANCELADA' %}selected{% endif %}>CANCELADA</option>
+                    </select>
+                </div>
+                <br>
+
+                <button type="submit">Salvar Diário de Classe</button>
+            </form>
+        </section>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Painel do Aluno - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Área do Estudante: {{ dados_aluno.nome }}</h1>
+    <p>Nível Acadêmico Atual: <strong>{{ dados_aluno.nivel }}</strong></p>
+
+    <!-- PRÓXIMAS AULAS -->
+    <section class="cartao-detalhe">
+        <h2>Minhas Próximas Aulas</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Horário</th>
+                    <th>Professor</th>
+                    <th>Título da Aula</th>
+                    <th>Tema Didático</th>
+                    <th>Sala Virtual</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for aula in proximas_aulas %}
+                <tr>
+                    <td style="white-space: nowrap;">
+                        {% set pa = (aula.data_aula | string).split('-') %}
+                        {{ pa[2] ~ '-' ~ pa[1] ~ '-' ~ pa[0] if pa|length == 3 else aula.data_aula }}
+                    </td>
+                    <td><span class="tag-horario">{{ (aula.horario_inicio | string)[:5] if aula.horario_inicio else '' }}</span></td>
+                    <td>{{ aula.nome_professor }}</td>
+                    <td><strong>{{ aula.titulo_aula }}</strong></td>
+                    <td>{{ aula.titulo_tema or 'Livre / Flexível' }}</td>
+                    <td>
+                        {% if aula.link_aula %}
+                            <a href="{{ aula.link_aula }}" target="_blank" rel="noopener noreferrer">Entrar na Sala</a>
+                        {% else %}
+                            <em>Aguardando link</em>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if aula.aula_assistida %}
+                            <span class="badge badge-em-dia">Assistida [✓]</span>
+                        {% else %}
+                            <span class="badge badge-{{ aula.status.lower() }}">{{ aula.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7">Nenhuma aula futura agendada no momento.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- HISTÓRICO ACADÊMICO -->
+    <section class="cartao-detalhe">
+        <h2>Histórico e Avaliações</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Título</th>
+                    <th>Presença</th>
+                    <th>Estudo</th>
+                    <th>Materiais</th>
+                    <th>Nota Prof</th>
+                    <th>Autoavaliação</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in historico_aulas %}
+                <tr>
+                    <td style="white-space: nowrap;">
+                        {% set ph = (h.data_aula | string).split('-') %}
+                        {{ ph[2] ~ '-' ~ ph[1] ~ '-' ~ ph[0] if ph|length == 3 else h.data_aula }}
+                    </td>
+                    <td><strong>{{ h.titulo_aula }}</strong></td>
+                    <td>
+                        {% if h.presenca %}
+                            <span class="badge badge-em-dia">Presente</span>
+                        {% else %}
+                            <span class="badge badge-pendente">Pendente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if h.aula_assistida %}
+                            <span class="badge badge-em-dia">Concluída</span>
+                        {% else %}
+                            <span class="badge badge-pendente">Pendente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if h.url_pdf %}<a href="{{ h.url_pdf }}" target="_blank" download><span class="badge badge-em-dia">PDF</span></a>{% endif %}
+                        {% if not h.url_pdf %}<em>Sem anexos</em>{% endif %}
+                    </td>
+                    <td>{{ h.nota_professor if h.nota_professor is not none else '-' }}</td>
+                    <td>{{ h.nota_autoav if h.nota_autoav is not none else '-' }}</td>
+                    <td><a href="/aula/{{ h.id_aula }}">Acessar Diário</a></td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8">Nenhum registro anterior no histórico.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- CALENDÁRIO MENSAL -->
+    <section id="calendario-academico" class="cartao-detalhe">
+        <h2>Calendário Mensal & Feriados Nacionais</h2>
+        <div class="calendario-container">
+            <div class="calendario-nav">
+                <a href="{{ url_for('painel_aluno', ano=ano_anterior, mes=mes_anterior) }}#calendario-academico" class="calendario-btn-nav">‹ Mês Anterior</a>
+                <span class="calendario-cabecalho-mes">{{ nome_mes_atual }} de {{ ano_atual }}</span>
+                <a href="{{ url_for('painel_aluno', ano=ano_proximo, mes=mes_proximo) }}#calendario-academico" class="calendario-btn-nav">Próximo Mês ›</a>
+            </div>
+
+            <div class="calendario-grid">
+                <div class="calendario-dia-semana">Dom</div>
+                <div class="calendario-dia-semana">Seg</div>
+                <div class="calendario-dia-semana">Ter</div>
+                <div class="calendario-dia-semana">Qua</div>
+                <div class="calendario-dia-semana">Qui</div>
+                <div class="calendario-dia-semana">Sex</div>
+                <div class="calendario-dia-semana">Sáb</div>
+
+                {% for semana in matriz_mes %}
+                    {% for dia in semana %}
+                        {% if dia == 0 %}
+                            <div class="calendario-celula vazia" aria-hidden="true"></div>
+                        {% else %}
+                            <div class="calendario-celula {% if dia == dia_hoje %}hoje{% endif %}">
+                                <span class="calendario-numero-dia">{{ dia }}</span>
+                                {% if dia in eventos_por_dia %}
+                                    {% for ev in eventos_por_dia[dia] %}
+                                        {% if ev.tipo in ['AULA_AGENDADA', 'AULA_ASSISTIDA'] %}
+                                            <a href="/aula/{{ ev.id_aula }}" style="text-decoration: none;">
+                                                <div class="calendario-evento-item {% if ev.tipo == 'AULA_ASSISTIDA' %}badge-concluida{% else %}badge-aula-agendada{% endif %}">
+                                                    {{ ev.titulo }}
+                                                </div>
+                                            </a>
+                                        {% else %}
+                                            <div class="calendario-evento-item badge-em-dia">{{ ev.titulo }}</div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+{% endblock %}

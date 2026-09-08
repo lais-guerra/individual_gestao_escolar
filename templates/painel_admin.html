@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Painel Administrativo - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Painel Geral da Coordenação</h1>
+
+    <!-- BLOCO: MURAL INSTITUCIONAL -->
+    <section class="cartao-detalhe">
+        <h2>Publicar Comunicado no Mural Acadêmico</h2>
+        <form action="/admin/cadastrar_evento" method="POST">
+            <div>
+                <label for="titulo_evento"><strong>Título do Comunicado:</strong></label><br>
+                <input type="text" id="titulo_evento" name="titulo" required maxlength="150" placeholder="Ex: Período de Rematrícula">
+            </div>
+            <br>
+
+            <div>
+                <label for="data_evento"><strong>Data:</strong></label><br>
+                <input type="date" id="data_evento" name="data_evento" required>
+            </div>
+            <br>
+
+            <div>
+                <label for="tipo_evento"><strong>Classificação:</strong></label><br>
+                <select id="tipo_evento" name="tipo_evento" required>
+                    <option value="AVISO">Aviso Geral da Secretaria</option>
+                    <option value="PROVA">Período de Avaliações / Provas</option>
+                    <option value="REUNIAO">Reunião Pedagógica</option>
+                </select>
+            </div>
+            <br>
+
+            <div>
+                <label for="descricao_evento"><strong>Descrição Detalhada:</strong></label><br>
+                <textarea id="descricao_evento" name="descricao" rows="3" placeholder="Insira as instruções ou avisos importantes..."></textarea>
+            </div>
+            <br>
+
+            <button type="submit">Publicar Comunicado</button>
+        </form>
+    </section>
+
+    <hr>
+
+    <!-- BLOCO: FERIADOS NACIONAIS VIA BRASILAPI -->
+    <section>
+        <h2>Feriados Nacionais Oficiais ({{ ano_vigente }}) - BrasilAPI</h2>
+        <table style="max-width: 650px;">
+            <thead>
+                <tr>
+                    <th style="width: 140px;">Data</th>
+                    <th>Feriado Nacional</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in feriados %}
+                <tr>
+                    <td style="white-space: nowrap;">
+                        {% set pf = (f.date | string).split('-') %}
+                        {{ pf[2] ~ '-' ~ pf[1] ~ '-' ~ pf[0] if pf|length == 3 else f.date }}
+                    </td>
+                    <td><strong>{{ f.name }}</strong></td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="2">Nenhum feriado sincronizado para o ano corrente.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+{% endblock %}

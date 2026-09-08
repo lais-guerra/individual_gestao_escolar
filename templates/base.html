@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titulo %}Portal Escolar{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- BLOCO DA NAVBAR: PODE SER SOBRESCRITO OU DESATIVADO -->
+    {% block navbar %}
+        {% include 'navbar.html' %}
+    {% endblock %}
+
+    <!-- CONTAINER CENTRAL -->
+    <main class="container-central">
+        {% with mensagens = get_flashed_messages() %}
+          {% if mensagens %}
+            <div class="mensagens-flash">
+              {% for msg in mensagens %}
+                <div class="alerta">{{ msg }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        {% block conteudo %}{% endblock %}
+    </main>
+
+    <!-- SCRIPT DE ACESSIBILIDADE GLOBAL -->
+    <script src="/static/acessibilidade.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

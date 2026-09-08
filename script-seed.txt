@@ -1,0 +1,80 @@
+-- =============================================================================
+-- CARGA DE DADOS DE TESTE (SEED) - GESTÃO ESCOLAR
+-- Senha de todos os usuários: 123456
+-- Hash Bcrypt correspondente: $2b$12$nBNAEDbQcavva2IxaJIRSebpCiuwVvqC4HIYzvgVBKbfAQyK0JdNW
+-- =============================================================================
+
+-- 1. Criação dos Usuários na Entidade Central (usuarios)
+INSERT INTO usuarios (id, email, senha, perfil) VALUES
+    (1, 'admin@escola.com', '$2b$12$nBNAEDbQcavva2IxaJIRSebpCiuwVvqC4HIYzvgVBKbfAQyK0JdNW', 'ADMIN'),
+    (2, 'professor.carlos@escola.com', '$2b$12$nBNAEDbQcavva2IxaJIRSebpCiuwVvqC4HIYzvgVBKbfAQyK0JdNW', 'PROFESSOR'),
+    (3, 'maria.silva@email.com', '$2b$12$nBNAEDbQcavva2IxaJIRSebpCiuwVvqC4HIYzvgVBKbfAQyK0JdNW', 'ALUNO'),
+    (4, 'joao.santos@email.com', '$2b$12$nBNAEDbQcavva2IxaJIRSebpCiuwVvqC4HIYzvgVBKbfAQyK0JdNW', 'ALUNO')
+ON CONFLICT (id) DO NOTHING;
+
+-- Sincroniza a sequence da tabela usuarios com o maior ID inserido
+SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios));
+
+-- 2. Perfis Específicos
+
+-- Administrador da Secretaria (id_usuario = 1)
+INSERT INTO administradores (id_admin, id_usuario, nome, cargo) VALUES
+    (1, 1, 'Coordenação Pedagógica / Secretaria', 'DIRETORIA')
+ON CONFLICT (id_admin) DO NOTHING;
+SELECT setval('administradores_id_admin_seq', (SELECT MAX(id_admin) FROM administradores));
+
+-- Docente (id_usuario = 2)
+INSERT INTO professores (id_professor, id_usuario, nome) VALUES
+    (1, 2, 'Prof. Carlos Eduardo')
+ON CONFLICT (id_professor) DO NOTHING;
+SELECT setval('professores_id_professor_seq', (SELECT MAX(id_professor) FROM professores));
+
+-- Alunos com dados do ViaCEP (id_usuario = 3 e 4)
+-- Níveis: 1 = Básico, 2 = Intermediário, 3 = Avançado
+INSERT INTO alunos (id_aluno, id_usuario, id_nivel, nome, cpf, cep, logradouro, bairro, cidade, uf, numero, complemento) VALUES
+    (1, 3, 1, 'Maria Silva', '11122233344', '12327000', 'Rua Barão de Jacareí', 'Centro', 'Jacareí', 'SP', '150', 'Apto 12'),
+    (2, 4, 2, 'João Santos', '55566677788', '12308000', 'Avenida Nove de Julho', 'Jardim Pereira do Amparo', 'Jacareí', 'SP', '820', NULL)
+ON CONFLICT (id_aluno) DO NOTHING;
+SELECT setval('alunos_id_aluno_seq', (SELECT MAX(id_aluno) FROM alunos));
+
+-- 3. Catálogo de Temas Didáticos
+INSERT INTO temas (id_tema, id_nivel, titulo_tema, descricao) VALUES
+    (1, 1, 'Vocabulário do Cotidiano e Família', 'Apresentação pessoal, pronomes e rotinas diárias'),
+    (2, 2, 'Tempos Verbais Passados e Narrativa', 'Estruturação de histórias, Simple Past e Past Continuous'),
+    (3, 3, 'Redação e Argumentação Avançada', 'Conectivos formais, debates e vocabulário corporativo')
+ON CONFLICT (id_tema) DO NOTHING;
+SELECT setval('temas_id_tema_seq', (SELECT MAX(id_tema) FROM temas));
+
+-- 4. Aulas Individuais Agendadas
+-- Aula 1: Maria Silva (Básico) - Agendada para hoje
+-- Aula 2: João Santos (Intermediário) - Concluída anteriormente
+INSERT INTO aulas (id_aula, id_professor, id_aluno, id_tema, titulo_aula, data_aula, horario_inicio, link_aula, status, observacoes) VALUES
+    (1, 1, 1, 1, 'Prática de Diálogo Básico I', CURRENT_DATE, '20:00:00', 'https://meet.google.com/abc-defg-hij', 'AGENDADA', 'Revisar a lista de vocabulário básico antes da aula.'),
+    (2, 1, 2, 2, 'Revisão de Gramática Intermediária', CURRENT_DATE - INTERVAL '3 days', '10:00:00', 'https://meet.google.com/xyz-uvwx-rst', 'CONCLUIDA', 'Aula concluída com foco em pronúncia.')
+ON CONFLICT (id_aula) DO NOTHING;
+SELECT setval('aulas_id_aula_seq', (SELECT MAX(id_aula) FROM aulas));
+
+-- 5. Controle Acadêmico das Aulas
+-- Registro da Aula 1 (Pendente de autoavaliação e presença)
+-- Registro da Aula 2 (Com presença oficial e autoavaliação já preenchida)
+INSERT INTO controle_academico (id_controle, id_aluno, id_aula, presenca, aula_assistida, data_conclusao, nota_professor, nota_autoav, anotacoes_aluno) VALUES
+    (1, 1, 1, FALSE, FALSE, NULL, NULL, NULL, NULL),
+    (2, 2, 2, TRUE, TRUE, CURRENT_TIMESTAMP - INTERVAL '3 days', 9.5, 9.0, 'Consegui compreender os conectivos passados com facilidade.')
+ON CONFLICT (id_controle) DO NOTHING;
+SELECT setval('controle_academico_id_controle_seq', (SELECT MAX(id_controle) FROM controle_academico));
+
+-- 6. Mensalidades para o Módulo Financeiro
+-- Maria Silva: Em aberto (PENDENTE)
+-- João Santos: Já quitado na secretaria (PAGO)
+INSERT INTO mensalidades (id_mensalidade, id_aluno, mes_referencia, valor, data_vencimento, status, data_pagamento) VALUES
+    (1, 1, TO_CHAR(CURRENT_DATE, 'YYYY-MM'), 150.00, CURRENT_DATE + INTERVAL '5 days', 'PENDENTE', NULL),
+    (2, 2, TO_CHAR(CURRENT_DATE - INTERVAL '1 month', 'YYYY-MM'), 150.00, CURRENT_DATE - INTERVAL '15 days', 'PAGO', CURRENT_DATE - INTERVAL '16 days')
+ON CONFLICT (id_mensalidade) DO NOTHING;
+SELECT setval('mensalidades_id_mensalidade_seq', (SELECT MAX(id_mensalidade) FROM mensalidades));
+
+-- 7. Avisos no Mural Institucional (eventos_agenda)
+INSERT INTO eventos_agenda (id_evento, titulo, descricao, data_evento, tipo_evento) VALUES
+    (1, 'Início do Semestre Letivo', 'Abertura oficial das mentorias e alinhamento de horários', CURRENT_DATE - INTERVAL '10 days', 'AVISO'),
+    (2, 'Simulado Geral de Nivelamento', 'Período reservado para testes de proficiência oral e escrita', CURRENT_DATE + INTERVAL '12 days', 'PROVA')
+ON CONFLICT (id_evento) DO NOTHING;
+SELECT setval('eventos_agenda_id_evento_seq', (SELECT MAX(id_evento) FROM eventos_agenda));

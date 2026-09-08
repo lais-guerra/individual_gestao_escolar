@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Gerenciar Professores - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Corpo Docente</h1>
+
+    <!-- BLOCO 1: LISTAGEM DE PROFESSORES -->
+    <section>
+        <h2>Professores Cadastrados</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome Completo</th>
+                    <th>E-mail</th>
+                    <th>Endereço</th>
+                    <th>Cidade / UF</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in professores %}
+                <tr>
+                    <td>{{ p.id_professor }}</td>
+                    <td><strong>{{ p.nome }}</strong></td>
+                    <td><a href="mailto:{{ p.email }}">{{ p.email }}</a></td>
+                    <td>
+                        {% if p.logradouro %}
+                            {{ p.logradouro }}, Nº {{ p.numero or 'S/N' }}
+                            {% if p.complemento %}({{ p.complemento }}){% endif %} - {{ p.bairro }} (CEP: {{ p.cep }})
+                        {% else %}
+                            <em>Não informado</em>
+                        {% endif %}
+                    </td>
+                    <td>{{ p.cidade or '-' }} / {{ p.uf or '-' }}</td>
+                    <td style="white-space: nowrap;">
+                        <button class="btn-editar-inline" type="button" 
+                                data-id="{{ p.id_professor }}"
+                                data-nome="{{ p.nome }}"
+                                data-email="{{ p.email }}"
+                                data-cep="{{ p.cep or '' }}"
+                                data-logradouro="{{ p.logradouro or '' }}"
+                                data-numero="{{ p.numero or '' }}"
+                                data-complemento="{{ p.complemento or '' }}"
+                                data-bairro="{{ p.bairro or '' }}"
+                                data-cidade="{{ p.cidade or '' }}"
+                                data-uf="{{ p.uf or '' }}"
+                                onclick="carregarEdicaoProf(this)"
+                                style="background:none; border:none; color:var(--primaria); cursor:pointer; font-weight:bold; text-decoration:underline;">
+                            Editar
+                        </button> | 
+                        <form action="/admin/excluir_professor" method="POST" style="display:inline;">
+                            <input type="hidden" name="id_usuario" value="{{ p.id_usuario }}">
+                            <button type="submit" style="background:none; border:none; color:#dc2626; cursor:pointer; font-weight:bold; text-decoration:underline;" onclick="return confirm('Confirma a exclusão deste professor?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">Nenhum professor cadastrado até o momento.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <hr>
+
+    <!-- BLOCO 2: FORMULÁRIO DE CADASTRO / EDIÇÃO -->
+    <section id="bloco-form-prof" class="cartao-detalhe">
+        <h2 id="titulo-form">Cadastrar Novo Professor</h2>
+        <form id="form-professor" action="/admin/cadastrar_professor" method="POST">
+            <input type="hidden" id="id_professor" name="id_professor">
+
+            <div>
+                <label for="nome"><strong>Nome Completo:</strong></label><br>
+                <input type="text" id="nome" name="nome" required maxlength="100" placeholder="Ex: Prof. Carlos Eduardo">
+            </div>
+            <br>
+
+            <div>
+                <label for="email"><strong>E-mail Institucional (Login):</strong></label><br>
+                <input type="email" id="email" name="email" required maxlength="100" placeholder="professor@escola.com">
+            </div>
+            <br>
+
+            <div id="campo-senha-container">
+                <label for="senha"><strong>Senha de Acesso:</strong></label><br>
+                <input type="password" id="senha" name="senha" minlength="6" placeholder="Mínimo 6 dígitos">
+                <small id="aviso-senha" style="display: none;"><br>(Deixe em branco caso queira manter a senha atual)</small>
+            </div>
+            <br>
+
+            <fieldset>
+                <legend>Endereço Residencial (Opcional - ViaCEP)</legend>
+                <div>
+                    <label for="cep">CEP:</label><br>
+                    <input type="text" id="cep" name="cep" maxlength="9" placeholder="00000-000" onblur="buscarCepProf()">
+                    <span id="statusCep"></span>
+                </div>
+                <br>
+
+                <div>
+                    <label for="logradouro">Rua / Logradouro:</label><br>
+                    <input type="text" id="logradouro" name="logradouro" readonly maxlength="150">
+                </div>
+                <br>
+
+                <div>
+                    <label for="numero">Número:</label><br>
+                    <input type="text" id="numero" name="numero" maxlength="20">
+                </div>
+                <br>
+
+                <div>
+                    <label for="complemento">Complemento:</label><br>
+                    <input type="text" id="complemento" name="complemento" maxlength="100">
+                </div>
+                <br>
+
+                <div>
+                    <label for="bairro">Bairro:</label><br>
+                    <input type="text" id="bairro" name="bairro" readonly maxlength="100">
+                </div>
+                <br>
+
+                <div>
+                    <label for="cidade">Cidade / UF:</label><br>
+                    <input type="text" id="cidade" name="cidade" readonly style="max-width: 200px;"> / 
+                    <input type="text" id="uf" name="uf" readonly style="max-width: 60px;">
+                </div>
+            </fieldset>
+            <br>
+
+            <div>
+                <button type="submit" id="btn-submit-prof">Cadastrar Professor</button>
+                <button type="button" id="btn-cancelar-edicao" onclick="cancelarEdicaoProf()" style="display:none; margin-left: 10px; background: none; border: 1px solid var(--borda); padding: 8px 14px; cursor: pointer;">Cancelar Edição</button>
+            </div>
+        </form>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function buscarCepProf() {
+        const campoCep = document.getElementById('cep');
+        const statusCep = document.getElementById('statusCep');
+        const cepLimpo = campoCep.value.replace(/\D/g, '');
+
+        if (cepLimpo.length !== 8) return;
+
+        statusCep.innerHTML = ' <span class="badge badge-agendada">Buscando...</span>';
+
+        fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+            .then(r => r.json())
+            .then(dados => {
+                if (dados.erro) {
+                    statusCep.innerHTML = ' <span class="badge badge-pendente">Não localizado</span>';
+                } else {
+                    document.getElementById('logradouro').value = dados.logradouro || '';
+                    document.getElementById('bairro').value = dados.bairro || '';
+                    document.getElementById('cidade').value = dados.localidade || '';
+                    document.getElementById('uf').value = dados.uf || '';
+                    statusCep.innerHTML = ' <span class="badge badge-em-dia">Preenchido</span>';
+                    document.getElementById('numero').focus();
+                }
+            })
+            .catch(() => {
+                statusCep.innerHTML = ' <span class="badge badge-pendente">Erro ao buscar CEP</span>';
+            });
+    }
+
+    function carregarEdicaoProf(btn) {
+        document.getElementById('titulo-form').innerText = 'Editar Professor: ' + btn.getAttribute('data-nome');
+        document.getElementById('form-professor').action = '/admin/editar_professor';
+        document.getElementById('id_professor').value = btn.getAttribute('data-id');
+        document.getElementById('nome').value = btn.getAttribute('data-nome');
+        document.getElementById('email').value = btn.getAttribute('data-email');
+        document.getElementById('cep').value = btn.getAttribute('data-cep');
+        document.getElementById('logradouro').value = btn.getAttribute('data-logradouro');
+        document.getElementById('numero').value = btn.getAttribute('data-numero');
+        document.getElementById('complemento').value = btn.getAttribute('data-complemento');
+        document.getElementById('bairro').value = btn.getAttribute('data-bairro');
+        document.getElementById('cidade').value = btn.getAttribute('data-cidade');
+        document.getElementById('uf').value = btn.getAttribute('data-uf');
+
+        document.getElementById('senha').removeAttribute('required');
+        document.getElementById('aviso-senha').style.display = 'inline';
+        document.getElementById('btn-submit-prof').innerText = 'Salvar Alterações';
+        document.getElementById('btn-cancelar-edicao').style.display = 'inline-block';
+
+        document.getElementById('bloco-form-prof').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelarEdicaoProf() {
+        document.getElementById('titulo-form').innerText = 'Cadastrar Novo Professor';
+        document.getElementById('form-professor').action = '/admin/cadastrar_professor';
+        document.getElementById('id_professor').value = '';
+        document.getElementById('form-professor').reset();
+        document.getElementById('senha').setAttribute('required', 'required');
+        document.getElementById('aviso-senha').style.display = 'none';
+        document.getElementById('btn-submit-prof').innerText = 'Cadastrar Professor';
+        document.getElementById('btn-cancelar-edicao').style.display = 'none';
+    }
+</script>
+{% endblock %}

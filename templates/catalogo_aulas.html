@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Catálogo Curricular - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Catálogo de Conteúdos e Aulas-Modelo</h1>
+
+    <!-- FILTRO DE CONSULTA -->
+    <section>
+        <h2>Filtro de Conteúdo Pedagógico</h2>
+        <form action="/catalogo-aulas" method="GET">
+            <div>
+                <label for="filtro_nivel">Filtrar por Nível:</label><br>
+                <select id="filtro_nivel" name="nivel_id">
+                    <option value="">-- Todos os Níveis --</option>
+                    {% for n in niveis %}
+                        <option value="{{ n.id_nivel }}" {% if request.args.get('nivel_id') == (n.id_nivel | string) %}selected{% endif %}>
+                            {{ n.nome }} ({{ n.sigla }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+            <button type="submit">Filtrar</button>
+            <a href="/catalogo-aulas" style="display: block; text-align: center; margin-top: 10px;">Limpar Filtro</a>
+        </form>
+    </section>
+
+    <hr>
+
+    <!-- LISTA DE AULAS-MODELO -->
+    <section>
+        <h2>Planos de Aula Disponíveis</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nível</th>
+                    <th>Título do Módulo</th>
+                    <th>Objetivos Didáticos</th>
+                    <th>Material de Apoio</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in temas %}
+                <tr>
+                    <td>{{ t.id_tema }}</td>
+                    <td><span class="badge badge-perfil-aluno">{{ t.sigla_nivel }}</span></td>
+                    <td><strong>{{ t.titulo_tema }}</strong></td>
+                    <td>{{ t.descricao or 'Sem descrição' }}</td>
+                    <td>
+                        {% if t.url_pdf %}
+                            <a href="{{ t.url_pdf }}" target="_blank" download>
+                                <span class="badge badge-em-dia">Baixar PDF</span>
+                            </a>
+                        {% else %}
+                            <span class="badge badge-pendente">Sem PDF</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/catalogo-aulas?edit_id={{ t.id_tema }}#formulario-tema">Editar</a> | 
+                        <form action="/catalogo-aulas/excluir" method="POST" style="display:inline;">
+                            <input type="hidden" name="id_tema" value="{{ t.id_tema }}">
+                            <button type="submit" onclick="return confirm('Confirmar a exclusão deste tema?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">Nenhum conteúdo pedagógico cadastrado para os critérios selecionados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <hr>
+
+    <!-- FORMULÁRIO DE CADASTRO / EDIÇÃO -->
+    <section id="formulario-tema">
+        {% if tema_edicao %}
+            <h2>Editar Aula-Modelo (ID: {{ tema_edicao.id_tema }})</h2>
+            <form action="/catalogo-aulas/editar" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="id_tema" value="{{ tema_edicao.id_tema }}">
+        {% else %}
+            <h2>Cadastrar Novo Tema Curricular</h2>
+            <form action="/catalogo-aulas/cadastrar" method="POST" enctype="multipart/form-data">
+        {% endif %}
+
+            <div>
+                <label for="titulo_tema">Título da Lição / Aula-Modelo:</label><br>
+                <input type="text" id="titulo_tema" name="titulo_tema" required maxlength="150" 
+                       value="{{ tema_edicao.titulo_tema if tema_edicao else '' }}">
+            </div>
+            <br>
+            <div>
+                <label for="id_nivel">Nível Pedagógico:</label><br>
+                <select id="id_nivel" name="id_nivel" required>
+                    <option value="" disabled {% if not tema_edicao %}selected{% endif %}>Selecione o nível...</option>
+                    {% for n in niveis %}
+                        <option value="{{ n.id_nivel }}" 
+                                {% if tema_edicao and tema_edicao.id_nivel == n.id_nivel %}selected{% endif %}>
+                            {{ n.nome }} ({{ n.sigla }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+            <div>
+                <label for="descricao">Objetivos e Orientações Pedagógicas:</label><br>
+                <textarea id="descricao" name="descricao" rows="3" cols="50">{{ tema_edicao.descricao if tema_edicao else '' }}</textarea>
+            </div>
+            <br>
+            <fieldset>
+                <legend>Material Didático (Apenas PDF)</legend>
+                <div>
+                    <label for="arquivo_pdf">Documento Complementar (PDF):</label><br>
+                    <input type="file" id="arquivo_pdf" name="arquivo_pdf" accept=".pdf">
+                    {% if tema_edicao and tema_edicao.url_pdf %}
+                        <br><small>Arquivo atual: <a href="{{ tema_edicao.url_pdf }}" target="_blank">Visualizar PDF</a> (deixe vazio para manter)</small>
+                    {% endif %}
+                </div>
+            </fieldset>
+            <br>
+            <div>
+                {% if tema_edicao %}
+                    <button type="submit">Salvar Alterações</button>
+                    <a href="/catalogo-aulas" style="display: block; text-align: center; margin-top: 10px;">Cancelar Edição</a>
+                {% else %}
+                    <button type="submit">Cadastrar no Catálogo</button>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+{% endblock %}

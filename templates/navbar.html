@@ -1,0 +1,37 @@
+{% block navbar %}
+<nav class="navbar">
+    <div class="navbar-esquerda">
+        <span class="marca-sistema">Portal Escolar</span>
+        <div class="links-navegacao">
+            {% if session.get('perfil_logado') == 'ADMIN' %}
+                <a href="/painel/admin" class="{{ 'active' if request.path == '/painel/admin' else '' }}">Início</a>
+                <a href="/catalogo-aulas" class="{{ 'active' if request.path == '/catalogo-aulas' else '' }}">Catálogo</a>
+                <a href="/gerenciar-aulas" class="{{ 'active' if request.path == '/gerenciar-aulas' else '' }}">Aulas</a>
+                <a href="/gerenciar-alunos" class="{{ 'active' if request.path == '/gerenciar-alunos' else '' }}">Alunos</a>
+                <a href="/admin/professores" class="{{ 'active' if request.path == '/admin/professores' else '' }}">Professores</a>
+            {% elif session.get('perfil_logado') == 'PROFESSOR' %}
+                <a href="/painel/professor" class="{{ 'active' if request.path == '/painel/professor' else '' }}">Meu Painel</a>
+                <a href="/catalogo-aulas" class="{{ 'active' if request.path == '/catalogo-aulas' else '' }}">Catálogo</a>
+                <a href="/gerenciar-aulas" class="{{ 'active' if request.path == '/gerenciar-aulas' else '' }}">Grade Geral</a>
+                <a href="/gerenciar-alunos" class="{{ 'active' if request.path == '/gerenciar-alunos' else '' }}">Alunos</a>
+            {% elif session.get('perfil_logado') == 'ALUNO' %}
+                <a href="/painel/aluno" class="{{ 'active' if request.path == '/painel/aluno' else '' }}">Minha Área</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="navbar-direita">
+        <button type="button" class="btn-nav btn-contraste" onclick="alternarContraste()" aria-label="Alternar modo de alto contraste" title="Alternar Alto Contraste">
+            ◐ Contraste
+        </button>
+        <div class="usuario-sessao">
+            <span class="usuario-email">{{ session.get('email_logado') }}</span>
+            <span class="badge-perfil badge-perfil-{{ session.get('perfil_logado', '').lower() }}">
+                {{ session.get('perfil_logado') }}
+            </span>
+        </div>
+        <a href="/meu-perfil" class="btn-nav btn-perfil {{ 'active' if request.path == '/meu-perfil' else '' }}">Meu Perfil</a>
+        <a href="/logout" class="btn-nav btn-sair">Sair</a>
+    </div>
+</nav>
+{% endblock %}

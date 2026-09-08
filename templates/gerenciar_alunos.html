@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Gerenciamento de Alunos - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Quadro de Alunos Matriculados</h1>
+
+    <!-- BARRA DE FILTRAGEM (NOME E NÍVEL) -->
+    <section class="cartao-detalhe">
+        <h2>Filtros de Pesquisa</h2>
+        <form action="/gerenciar-alunos" method="GET" style="display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; justify-content: center;">
+            <div>
+                <label for="filtro_nome">Buscar por Nome:</label><br>
+                <input type="text" id="filtro_nome" name="busca_nome" placeholder="Digite o nome do aluno..." 
+                       value="{{ request.args.get('busca_nome', '') }}" style="width: 240px;">
+            </div>
+
+            <div>
+                <label for="filtro_nivel">Nível Acadêmico:</label><br>
+                <select id="filtro_nivel" name="nivel_id" style="width: auto; min-width: 180px;">
+                    <option value="">-- Todos os Níveis --</option>
+                    {% for nivel in lista_niveis %}
+                        <option value="{{ nivel.id_nivel }}" {% if request.args.get('nivel_id') == (nivel.id_nivel | string) %}selected{% endif %}>
+                            {{ nivel.nome }} ({{ nivel.sigla }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" style="margin: 0;">Aplicar Filtros</button>
+            <a href="/gerenciar-alunos" style="align-self: center;">Limpar Filtros</a>
+        </form>
+    </section>
+
+    <!-- LISTAGEM DE ALUNOS -->
+    <section>
+        <h2>Estudantes Cadastrados</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome Completo</th>
+                    <th>Nível</th>
+                    {% if session.get('perfil_logado') == 'ADMIN' %}
+                        <th>CPF</th>
+                    {% endif %}
+                    <th>E-mail</th>
+                    <th>Cidade / UF</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for aluno in alunos %}
+                <tr>
+                    <td>{{ aluno.id_aluno }}</td>
+                    <td><strong>{{ aluno.nome }}</strong></td>
+                    <td><span class="badge badge-perfil-aluno">{{ aluno.sigla_nivel }}</span></td>
+
+                    {% if session.get('perfil_logado') == 'ADMIN' %}
+                        <td>{{ aluno.cpf or 'Não informado' }}</td>
+                    {% endif %}
+
+                    <td><a href="mailto:{{ aluno.email }}">{{ aluno.email }}</a></td>
+                    <td>{{ aluno.cidade }} / {{ aluno.uf }}</td>
+
+                    {% if session.get('perfil_logado') == 'ADMIN' %}
+                        <td>
+                            <a href="/gerenciar-alunos?aluno_edit_id={{ aluno.id_aluno }}#formulario-edicao-aluno">Editar</a> | 
+                            <form action="/admin/excluir_aluno" method="POST" style="display:inline;">
+                                <input type="hidden" name="id_usuario" value="{{ aluno.id_usuario }}">
+                                <button type="submit" onclick="return confirm('Confirma a exclusão deste aluno?')">Excluir</button>
+                            </form>
+                        </td>
+                    {% else %}
+                        <td>
+                            <a href="/painel/professor#agendar-aula">Agendar Mentoria</a>
+                        </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{% if session.get('perfil_logado') == 'ADMIN' %}7{% else %}6{% endif %}">
+                        Nenhum aluno localizado para os filtros informados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- FORMULÁRIO DE EDIÇÃO RESTRITA DO ALUNO -->
+    {% if session.get('perfil_logado') == 'ADMIN' and aluno_edicao %}
+    <section id="formulario-edicao-aluno" class="cartao-detalhe" style="margin-top: 30px;">
+        <h2>Editar Aluno: {{ aluno_edicao.nome }} (ID: {{ aluno_edicao.id_aluno }})</h2>
+        <p><small>* Nome, e-mail e CPF são de uso restrito do próprio aluno em "Meu Perfil".</small></p>
+
+        <form action="/admin/editar_aluno" method="POST">
+            <input type="hidden" name="id_aluno" value="{{ aluno_edicao.id_aluno }}">
+
+            <div>
+                <label><strong>Nome:</strong> {{ aluno_edicao.nome }}</label> &nbsp;|&nbsp;
+                <label><strong>CPF:</strong> {{ aluno_edicao.cpf or 'Não informado' }}</label>
+            </div>
+            <br>
+
+            <div>
+                <label for="id_nivel"><strong>Reclassificar Nível Acadêmico:</strong></label><br>
+                <select id="id_nivel" name="id_nivel" required>
+                    {% for nivel in lista_niveis %}
+                        <option value="{{ nivel.id_nivel }}" {% if aluno_edicao.id_nivel == nivel.id_nivel %}selected{% endif %}>
+                            {{ nivel.nome }} ({{ nivel.sigla }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+
+            <fieldset>
+                <legend>Atualizar Endereço do Aluno (ViaCEP)</legend>
+
+                <div>
+                    <label for="cep">CEP:</label><br>
+                    <input type="text" id="cep" name="cep" required maxlength="9" value="{{ aluno_edicao.cep or '' }}" onblur="buscarCepInline()">
+                    <span id="statusCep"></span>
+                </div>
+                <br>
+
+                <div>
+                    <label for="logradouro">Rua / Logradouro:</label><br>
+                    <input type="text" id="logradouro" name="logradouro" required readonly value="{{ aluno_edicao.logradouro or '' }}">
+                </div>
+                <br>
+
+                <div>
+                    <label for="numero">Número:</label><br>
+                    <input type="text" id="numero" name="numero" required maxlength="20" value="{{ aluno_edicao.numero or '' }}">
+                </div>
+                <br>
+
+                <div>
+                    <label for="complemento">Complemento:</label><br>
+                    <input type="text" id="complemento" name="complemento" maxlength="100" value="{{ aluno_edicao.complemento or '' }}">
+                </div>
+                <br>
+
+                <div>
+                    <label for="bairro">Bairro:</label><br>
+                    <input type="text" id="bairro" name="bairro" required readonly value="{{ aluno_edicao.bairro or '' }}">
+                </div>
+                <br>
+
+                <div>
+                    <label for="cidade">Cidade / UF:</label><br>
+                    <input type="text" id="cidade" name="cidade" required readonly style="max-width: 200px;" value="{{ aluno_edicao.cidade or '' }}"> / 
+                    <input type="text" id="uf" name="uf" required readonly style="max-width: 60px;" value="{{ aluno_edicao.uf or '' }}">
+                </div>
+            </fieldset>
+            <br>
+
+            <div>
+                <button type="submit">Salvar Endereço e Nível</button>
+                <a href="/gerenciar-alunos" style="display: block; text-align: center; margin-top: 10px;">Cancelar</a>
+            </div>
+        </form>
+    </section>
+    {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function buscarCepInline() {
+        const cep = document.getElementById('cep').value.replace(/\D/g, '');
+        const status = document.getElementById('statusCep');
+        if (cep.length !== 8) return;
+
+        status.innerHTML = ' <span class="badge badge-agendada">Buscando...</span>';
+        fetch(`https://viacep.com.br/ws/${cep}/json/`)
+            .then(r => r.json())
+            .then(d => {
+                if (!d.erro) {
+                    document.getElementById('logradouro').value = d.logradouro || '';
+                    document.getElementById('bairro').value = d.bairro || '';
+                    document.getElementById('cidade').value = d.localidade || '';
+                    document.getElementById('uf').value = d.uf || '';
+                    status.innerHTML = ' <span class="badge badge-em-dia">Atualizado!</span>';
+                } else {
+                    status.innerHTML = ' <span class="badge badge-pendente">Não localizado</span>';
+                }
+            })
+            .catch(() => { 
+                status.innerHTML = ' <span class="badge badge-pendente">Falha na busca</span>'; 
+            });
+    }
+</script>
+{% endblock %}

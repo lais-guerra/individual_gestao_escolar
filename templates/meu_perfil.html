@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Meu Perfil - Portal Escolar{% endblock %}
+
+{% block conteudo %}
+    <h1>Gerenciar Meu Perfil</h1>
+
+    <section class="cartao-detalhe">
+        <form action="/meu-perfil" method="POST">
+            
+            {% if perfil != 'ADMIN' %}
+            <div>
+                <label for="nome"><strong>Nome Completo:</strong></label><br>
+                <input type="text" id="nome" name="nome" value="{{ dados.nome }}" required maxlength="100">
+            </div>
+            <br>
+            {% endif %}
+
+            <div>
+                <label for="email"><strong>E-mail de Login:</strong></label><br>
+                <input type="email" id="email" name="email" value="{{ dados.email }}" required maxlength="100">
+            </div>
+            <br>
+
+            {% if perfil == 'ALUNO' %}
+            <div>
+                <label><strong>Nível Acadêmico Atual:</strong></label><br>
+                <span class="badge badge-perfil-aluno">{{ dados.sigla_nivel }} - {{ dados.nome_nivel }}</span>
+            </div>
+            <br>
+            <div>
+                <label><strong>CPF:</strong></label><br>
+                <input type="text" value="{{ dados.cpf or 'Não informado' }}" disabled style="opacity: 0.7;">
+            </div>
+            <br>
+            {% endif %}
+
+            <!-- ALTERAÇÃO DE SENHA -->
+            <fieldset>
+                <legend>Alterar Senha de Acesso</legend>
+                <p><small>Deixe os campos em branco se não desejar alterar a senha atual.</small></p>
+                <div>
+                    <label for="senha_atual">Senha Atual:</label><br>
+                    <input type="password" id="senha_atual" name="senha_atual" placeholder="Digite sua senha atual">
+                </div>
+                <br>
+                <div>
+                    <label for="nova_senha">Nova Senha:</label><br>
+                    <input type="password" id="nova_senha" name="nova_senha" minlength="6" placeholder="Mínimo 6 caracteres">
+                </div>
+            </fieldset>
+            <br>
+
+            <!-- ENDEREÇO (APENAS PROFESSOR E ALUNO) -->
+            {% if perfil in ['PROFESSOR', 'ALUNO'] %}
+            <fieldset>
+                <legend>Endereço Residencial (ViaCEP)</legend>
+                <div>
+                    <label for="cep">CEP:</label><br>
+                    <input type="text" id="cep" name="cep" maxlength="9" value="{{ dados.cep or '' }}" onblur="buscarCepPerfil()">
+                    <span id="statusCep"></span>
+                </div>
+                <br>
+                <div>
+                    <label for="logradouro">Logradouro / Rua:</label><br>
+                    <input type="text" id="logradouro" name="logradouro" readonly value="{{ dados.logradouro or '' }}">
+                </div>
+                <br>
+                <div>
+                    <label for="numero">Número:</label><br>
+                    <input type="text" id="numero" name="numero" maxlength="20" value="{{ dados.numero or '' }}">
+                </div>
+                <br>
+                <div>
+                    <label for="complemento">Complemento:</label><br>
+                    <input type="text" id="complemento" name="complemento" maxlength="100" value="{{ dados.complemento or '' }}">
+                </div>
+                <br>
+                <div>
+                    <label for="bairro">Bairro:</label><br>
+                    <input type="text" id="bairro" name="bairro" readonly value="{{ dados.bairro or '' }}">
+                </div>
+                <br>
+                <div>
+                    <label for="cidade">Cidade / UF:</label><br>
+                    <input type="text" id="cidade" name="cidade" readonly style="max-width: 200px;" value="{{ dados.cidade or '' }}"> / 
+                    <input type="text" id="uf" name="uf" readonly style="max-width: 60px;" value="{{ dados.uf or '' }}">
+                </div>
+            </fieldset>
+            <br>
+            {% endif %}
+
+            <button type="submit">Salvar Alterações</button>
+        </form>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function buscarCepPerfil() {
+        const campoCep = document.getElementById('cep');
+        const statusCep = document.getElementById('statusCep');
+        const cepLimpo = campoCep.value.replace(/\D/g, '');
+
+        if (cepLimpo.length !== 8) return;
+
+        statusCep.innerHTML = ' <span class="badge badge-agendada">Buscando...</span>';
+
+        fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+            .then(r => r.json())
+            .then(dados => {
+                if (dados.erro) {
+                    statusCep.innerHTML = ' <span class="badge badge-pendente">Não localizado</span>';
+                } else {
+                    document.getElementById('logradouro').value = dados.logradouro || '';
+                    document.getElementById('bairro').value = dados.bairro || '';
+                    document.getElementById('cidade').value = dados.localidade || '';
+                    document.getElementById('uf').value = dados.uf || '';
+                    statusCep.innerHTML = ' <span class="badge badge-em-dia">Preenchido</span>';
+                    document.getElementById('numero').focus();
+                }
+            })
+            .catch(() => {
+                statusCep.innerHTML = ' <span class="badge badge-pendente">Erro ao buscar CEP</span>';
+            });
+    }
+</script>
+{% endblock %}

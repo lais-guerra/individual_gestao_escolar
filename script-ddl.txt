@@ -1,0 +1,158 @@
+-- =============================================================================
+-- PROJETO DE GESTÃO ESCOLAR - DDL OFICIAL (POSTGRESQL)
+-- =============================================================================
+
+-- Limpeza preventiva de tabelas dependentes caso precise recriar do zero
+DROP TABLE IF EXISTS mensalidades CASCADE;
+DROP TABLE IF EXISTS controle_academico CASCADE;
+DROP TABLE IF EXISTS aulas CASCADE;
+DROP TABLE IF EXISTS temas CASCADE;
+DROP TABLE IF EXISTS alunos CASCADE;
+DROP TABLE IF EXISTS professor CASCADE;
+DROP TABLE IF EXISTS administradores CASCADE;
+DROP TABLE IF EXISTS eventos_agenda CASCADE;
+DROP TABLE IF EXISTS niveis CASCADE;
+DROP TABLE IF EXISTS usuarios CASCADE;
+
+-- =============================================================================
+-- 1. TABELAS DE AUTENTICAÇÃO E DOMÍNIO BASE
+-- =============================================================================
+
+-- Autenticação unificada (Entidade Pai)
+CREATE TABLE usuarios (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    senha VARCHAR(255) NOT NULL,
+    perfil VARCHAR(20) NOT NULL -- 'ADMIN', 'PROFESSOR', 'ALUNO'
+);
+
+-- Tabela de domínio/lookup para Níveis Pedagógicos (3ª Forma Normal)
+CREATE TABLE niveis (
+    id_nivel SERIAL PRIMARY KEY,
+    sigla VARCHAR(20) UNIQUE NOT NULL, -- 'BASICO', 'INTERMEDIARIO', 'AVANCADO'
+    nome VARCHAR(50) NOT NULL,
+    descricao TEXT
+);
+
+-- Carga inicial dos níveis do sistema
+INSERT INTO niveis (sigla, nome, descricao) VALUES
+    ('BASICO', 'Básico', 'Fundamentos e vocabulário elementar'),
+    ('INTERMEDIARIO', 'Intermediário', 'Estruturas intermediárias e conversação guiada'),
+    ('AVANCADO', 'Avançado', 'Comunicação complexa e fluência plena');
+
+-- =============================================================================
+-- 2. PERFIS ESPECÍFICOS DE USUÁRIO
+-- =============================================================================
+
+-- Secretaria / Direção (Acesso global e financeiro)
+CREATE TABLE administradores (
+    id_admin SERIAL PRIMARY KEY,
+    id_usuario INT UNIQUE NOT NULL,
+    nome VARCHAR(100) NOT NULL,
+    cargo VARCHAR(50) DEFAULT 'SECRETARIA',
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+-- Corpo docente (Gestão de aulas, temas e devolutiva de notas)
+CREATE TABLE professores (
+    id_professor SERIAL PRIMARY KEY,
+    id_usuario INT UNIQUE NOT NULL,
+    nome VARCHAR(100) NOT NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+-- Alunos (Campos de endereço estruturados para receber ViaCEP)
+CREATE TABLE alunos (
+    id_aluno SERIAL PRIMARY KEY,
+    id_usuario INT UNIQUE NOT NULL,
+    id_nivel INT NOT NULL DEFAULT 1,
+    nome VARCHAR(100) NOT NULL,
+    cpf VARCHAR(14) UNIQUE,
+    cep VARCHAR(9) NOT NULL,
+    logradouro VARCHAR(150) NOT NULL,
+    bairro VARCHAR(100) NOT NULL,
+    cidade VARCHAR(100) NOT NULL,
+    uf CHAR(2) NOT NULL,
+    numero VARCHAR(20) NOT NULL,
+    complemento VARCHAR(100),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_nivel) REFERENCES niveis(id_nivel) ON DELETE RESTRICT
+);
+
+-- =============================================================================
+-- 3. PLANEJAMENTO PEDAGÓGICO E AULAS INDIVIDUAIS
+-- =============================================================================
+
+-- Conteúdos/Temas didáticos vinculados ao nível acadêmico
+CREATE TABLE temas (
+    id_tema SERIAL PRIMARY KEY,
+    id_nivel INT NOT NULL,
+    titulo_tema VARCHAR(150) NOT NULL,
+    descricao TEXT,
+    FOREIGN KEY (id_nivel) REFERENCES niveis(id_nivel) ON DELETE RESTRICT
+);
+
+-- Aulas individuais com slot padronizado de 1 hora e anexos em /static/uploads/
+CREATE TABLE aulas (
+    id_aula SERIAL PRIMARY KEY,
+    id_professor INT NOT NULL,
+    id_aluno INT NOT NULL,
+    id_tema INT, -- Opcional/flexível (RN04)
+    titulo_aula VARCHAR(150) NOT NULL,
+    data_aula DATE NOT NULL,
+    horario_inicio TIME NOT NULL, -- Duração presumida de 1 hora
+    link_aula VARCHAR(255),
+    status VARCHAR(20) DEFAULT 'AGENDADA', -- 'AGENDADA', 'CONCLUIDA', 'CANCELADA', 'FERIAS'
+    url_pdf VARCHAR(255),                  -- Caminho do material salvo em /static/uploads/
+    url_slides VARCHAR(255),               -- Caminho dos slides salvos em /static/uploads/
+    observacoes TEXT,
+    CONSTRAINT uk_professor_agenda UNIQUE (id_professor, data_aula, horario_inicio),
+    FOREIGN KEY (id_professor) REFERENCES professores(id_professor) ON DELETE RESTRICT,
+    FOREIGN KEY (id_aluno) REFERENCES alunos(id_aluno) ON DELETE CASCADE,
+    FOREIGN KEY (id_tema) REFERENCES temas(id_tema) ON DELETE SET NULL
+);
+
+-- =============================================================================
+-- 4. CONTROLE ACADÊMICO E AUTOAVALIAÇÃO
+-- =============================================================================
+
+-- Check de aula assistida pelo aluno e notas mútuas
+CREATE TABLE controle_academico (
+    id_controle SERIAL PRIMARY KEY,
+    id_aluno INT NOT NULL,
+    id_aula INT NOT NULL,
+    presenca BOOLEAN DEFAULT FALSE,       -- Controle de chamada do Professor
+    aula_assistida BOOLEAN DEFAULT FALSE, -- Check marcado pelo Aluno
+    data_conclusao TIMESTAMP,             -- Momento da conclusão pelo aluno
+    nota_professor DECIMAL(5,2),          -- Nota lançada pelo Professor
+    nota_autoav DECIMAL(5,2),             -- Autoavaliação do Aluno
+    anotacoes_aluno TEXT,
+    CONSTRAINT uk_aluno_aula UNIQUE (id_aluno, id_aula),
+    FOREIGN KEY (id_aluno) REFERENCES alunos(id_aluno) ON DELETE CASCADE,
+    FOREIGN KEY (id_aula) REFERENCES aulas(id_aula) ON DELETE CASCADE
+);
+
+-- =============================================================================
+-- 5. MURAL INSTITUCIONAL E CONTROLE FINANCEIRO
+-- =============================================================================
+
+-- Avisos e provas escolares (unificados com feriados da BrasilAPI)
+CREATE TABLE eventos_agenda (
+    id_evento SERIAL PRIMARY KEY,
+    titulo VARCHAR(150) NOT NULL,
+    descricao TEXT,
+    data_evento DATE NOT NULL,
+    tipo_evento VARCHAR(50) DEFAULT 'AVISO' -- 'AVISO', 'PROVA', 'REUNIAO'
+);
+
+-- Módulo Financeiro simples para a Secretaria (ADMIN)
+CREATE TABLE mensalidades (
+    id_mensalidade SERIAL PRIMARY KEY,
+    id_aluno INT NOT NULL,
+    mes_referencia VARCHAR(7) NOT NULL, -- Ex: '2026-09'
+    valor DECIMAL(10,2) NOT NULL DEFAULT 150.00,
+    data_vencimento DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDENTE', -- 'PENDENTE', 'PAGO', 'ATRASADO'
+    data_pagamento DATE,
+    FOREIGN KEY (id_aluno) REFERENCES alunos(id_aluno) ON DELETE CASCADE
+);
